@@ -4,6 +4,7 @@ import android.os.Build;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
+import android.util.Log;
 
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
@@ -36,6 +37,7 @@ import java.util.concurrent.Executors;
 
 public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
+    private final String TAG = "ReactNativeBiometrics";
     protected String biometricKeyAlias = "biometric_key";
 
     public ReactNativeBiometrics(ReactApplicationContext reactContext) {
@@ -85,6 +87,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                 promise.resolve(resultMap);
             }
         } catch (Exception e) {
+            Log.e(TAG, "[error]: " + e.getMessage());
             promise.reject("Error detecting biometrics availability: " + e.getMessage(), "Error detecting biometrics availability: " + e.getMessage());
         }
     }
@@ -116,6 +119,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                 promise.reject("Cannot generate keys on android versions below 6.0", "Cannot generate keys on android versions below 6.0");
             }
         } catch (Exception e) {
+            Log.e(TAG, "[error]: " + e.getMessage());
             promise.reject("Error generating public private keys: " + e.getMessage(), "Error generating public private keys");
         }
     }
@@ -149,6 +153,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                             try {
                                 String cancelButtomText = params.getString("cancelButtonText");
                                 String promptMessage = params.getString("promptMessage");
+                                boolean allowDeviceCredential = params.getBoolean("allowDeviceCredential");
                                 String payload = params.getString("payload");
 
                                 Signature signature = Signature.getInstance("SHA256withRSA");
@@ -172,6 +177,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                                         .build();
                                 biometricPrompt.authenticate(promptInfo, cryptoObject);
                             } catch (Exception e) {
+                                Log.e(TAG, "[error]: " + e.getMessage());
                                 promise.reject("Error signing payload: " + e.getMessage(), "Error generating signature: " + e.getMessage());
                             }
                         }
@@ -191,19 +197,26 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                             try {
                                 String cancelButtomText = params.getString("cancelButtonText");
                                 String promptMessage = params.getString("promptMessage");
+                                boolean allowDeviceCredential = params.getBoolean("allowDeviceCredential");
 
                                 AuthenticationCallback authCallback = new SimplePromptCallback(promise);
                                 FragmentActivity fragmentActivity = (FragmentActivity) getCurrentActivity();
                                 Executor executor = Executors.newSingleThreadExecutor();
                                 BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor, authCallback);
 
-                                PromptInfo promptInfo = new PromptInfo.Builder()
-                                        .setDeviceCredentialAllowed(false)
-                                        .setNegativeButtonText(cancelButtomText)
+                                PromptInfo.Builder promptInfoBuilder = new PromptInfo.Builder()
                                         .setTitle(promptMessage)
-                                        .build();
-                                biometricPrompt.authenticate(promptInfo);
+                                        .setDeviceCredentialAllowed(allowDeviceCredential);
+
+                                // Cannot call setNegativeButtonText() and
+                                // setDeviceCredentialAllowed() at the same time.
+                                if (!allowDeviceCredential) {
+                                    promptInfoBuilder.setNegativeButtonText(cancelButtomText);
+                                }
+
+                                biometricPrompt.authenticate(promptInfoBuilder.build());
                             } catch (Exception e) {
+                                Log.e(TAG, "[error]: " + e.getMessage());
                                 promise.reject("Error displaying local biometric prompt: " + e.getMessage(), "Error displaying local biometric prompt: " + e.getMessage());
                             }
                         }
@@ -221,19 +234,21 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
             resultMap.putBoolean("keysExist", doesBiometricKeyExist);
             promise.resolve(resultMap);
         } catch (Exception e) {
+            Log.e(TAG, "[error]: " + e.getMessage());
             promise.reject("Error checking if biometric key exists: " + e.getMessage(), "Error checking if biometric key exists: " + e.getMessage());
         }
     }
 
     protected boolean doesBiometricKeyExist() {
-      try {
-        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-        keyStore.load(null);
+        try {
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
 
-        return keyStore.containsAlias(biometricKeyAlias);
-      } catch (Exception e) {
-        return false;
-      }
+            return keyStore.containsAlias(biometricKeyAlias);
+        } catch (Exception e) {
+            Log.e(TAG, "[error]: " + e.getMessage());
+            return false;
+        }
     }
 
     protected boolean deleteBiometricKey() {
@@ -244,6 +259,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
             keyStore.deleteEntry(biometricKeyAlias);
             return true;
         } catch (Exception e) {
+            Log.e(TAG, "[error]: " + e.getMessage());
             return false;
         }
     }

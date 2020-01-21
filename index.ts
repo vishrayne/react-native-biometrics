@@ -40,6 +40,7 @@ interface CreateSignatureResult {
 interface SimplePromptOptions {
     promptMessage: string
     cancelButtonText?: string
+    allowDeviceCredential?: boolean
 }
 
 interface SimplePromptResult {
@@ -106,9 +107,7 @@ module ReactNativeBiometrics {
      * @returns {Promise<Object>}  Promise that resolves to an object cryptographic signature details
      */
     export function createSignature(createSignatureOptions: CreateSignatureOptions): Promise<CreateSignatureResult> {
-        if (!createSignatureOptions.cancelButtonText) {
-            createSignatureOptions.cancelButtonText = 'Cancel';
-        }
+        createSignatureOptions.cancelButtonText = createSignatureOptions.cancelButtonText || 'Cancel';
 
         return bridge.createSignature(createSignatureOptions);
     }
@@ -123,9 +122,8 @@ module ReactNativeBiometrics {
      * @returns {Promise<Object>}  Promise that resolves an object with details about the biometrics result
      */
     export function simplePrompt(simplePromptOptions: SimplePromptOptions): Promise<SimplePromptResult> {
-        if (!simplePromptOptions.cancelButtonText) {
-            simplePromptOptions.cancelButtonText = 'Cancel';
-        }
+        simplePromptOptions.cancelButtonText = simplePromptOptions.cancelButtonText || 'Cancel';
+        simplePromptOptions.allowDeviceCredential = simplePromptOptions.allowDeviceCredential || false;
 
         return bridge.simplePrompt(simplePromptOptions);
     }
